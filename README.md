@@ -35,6 +35,11 @@ cd constellation-playground
 
 2. Running application locally:
 
+- without config.toml
 ```bash
 streamlit run streamlit_constellation_map.py --server.headless true --server.fileWatcherType=poll
+```
+- with config.toml
+```bash
+streamlit run streamlit_constellation_map.py
 ```

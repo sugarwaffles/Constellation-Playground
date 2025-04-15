@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, time as dtime
 import requests
 import base64
 import json
@@ -15,6 +15,9 @@ APP_SECRET = os.getenv("APP_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 ASTRONOMY_API_URL = 'https://api.astronomyapi.com/api/v2/studio/star-chart'
 
+# New endpoints for planetary positions and moon phase
+PLANETARY_POSITIONS_URL = "https://api.astronomyapi.com/api/v2/bodies/positions"
+MOON_PHASE_URL = "https://api.astronomyapi.com/api/v2/studio/moon-phase"
 
 # --- Functions for Google Places ---
 def get_place_suggestions(api_key, user_input):
@@ -80,10 +83,49 @@ st.title("🔭 Constellation Viewer")
 
 planet_position_tab ,star_charts_tab, moon_phase_tab = st.tabs(["Planetary Positions", "Star Charts", "Moon Phase"])
 
+# ============================================================
+# Tab 1: Planetary Positions
+# ============================================================
 with planet_position_tab:
     st.header("Planetary Positions")
-
+    st.markdown(":green[Description]: Retrieve positions for all available celestial bodies for the given date range and observer's location. (Endpoint: GET /api/v2/bodies/positions)")
     
+    col1, col2 = st.columns(2)
+    with col1:
+        pos_lat = st.number_input("Latitude", value=1.3521, key="pos_lat", format="%.4f")
+    with col2:
+        pos_lng = st.number_input("Longitude", value=103.8198, key="pos_lng", format="%.4f")
+    pos_elevation = st.number_input("Elevation (m)", value=0, key="pos_elev")
+    
+    pos_from_date = st.date_input("From Date", value=datetime.today(), key="pos_from")
+    pos_to_date = st.date_input("To Date", value=datetime.today(), key="pos_to")
+    pos_time = st.time_input("Time", value=dtime(9, 0), key="pos_time")
+    
+    if st.button("Get Positions", key="pos_button"):
+        # Format time as HH:MM:SS
+        time_str = pos_time.strftime("%H:%M:%S")
+        params = {
+            "latitude": pos_lat,
+            "longitude": pos_lng,
+            "elevation": pos_elevation,
+            "from_date": pos_from_date.strftime("%Y-%m-%d"),
+            "to_date": pos_to_date.strftime("%Y-%m-%d"),
+            "time": time_str,
+            "output": "table"
+        }
+        st.info("Requesting planetary positions from AstronomyAPI...")
+        try:
+            pos_res = requests.get(PLANETARY_POSITIONS_URL, headers=auth_headers, params=params, timeout=120)
+            pos_res.raise_for_status()
+            pos_data = pos_res.json()
+            # Display JSON data (you can format this into a table if desired)
+            st.json(pos_data)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# ============================================================
+# Tab 2: Star Charts 
+# ============================================================
 with star_charts_tab:
     st.header("Star Charts")
     st.markdown(":green[Description]: Generate a star map for a specific constellation based on your location and date.")
@@ -185,9 +227,63 @@ with star_charts_tab:
         except Exception as e:
             st.error(f"Error: {e}")
 
-    
+# ============================================================
+# Tab 3: Moon Phase
+# ============================================================
 with moon_phase_tab:
     st.header("Moon Phase")
+    st.markdown(":green[Description]: Generate an image of the moon phase using AstronomyAPI's POST endpoint.")
+    
+    # Observer details
+    col1, col2 = st.columns(2)
+    with col1:
+        mp_lat = st.number_input("Latitude", value=st.session_state.latitude, key="mp_lat", format="%.4f")
+    with col2:
+        mp_lng = st.number_input("Longitude", value=st.session_state.longitude, key="mp_lng", format="%.4f")
+    mp_date = st.date_input("Select date", value=datetime.today(), key="mp_date")
+    
+    # Additional style configuration for Moon Phase (optional)
+    mp_format = st.selectbox("Image Format", options=["png", "svg"], index=0)
+    mp_moonStyle = st.selectbox("Moon Style", options=["default", "sketch", "shaded"], index=0)
+    mp_backgroundStyle = st.selectbox("Background Style", options=["stars", "solid"], index=0)
+    if mp_backgroundStyle == "solid":
+        mp_backgroundColor = st.color_picker("Background Color", value="#000000")
+    else:
+        mp_backgroundColor = None
+
+    # Observer, style and view parameters for moon phase.
+    mp_payload = {
+        "format": mp_format,
+        "style": {
+            "moonStyle": mp_moonStyle,
+            "backgroundStyle": mp_backgroundStyle,
+            # Only include backgroundColor if background is solid.
+            **({"backgroundColor": mp_backgroundColor} if mp_backgroundStyle == "solid" else {})
+        },
+        "observer": {
+            "latitude": mp_lat,
+            "longitude": mp_lng,
+            "date": mp_date.strftime("%Y-%m-%d")
+        },
+        "view": {
+            "type": "portrait-simple",
+            # Optional: let user choose orientation
+            "orientation": st.selectbox("Orientation", options=["north-up", "south-up"], index=0)
+        }
+    }
+    
+    if st.button("Get Moon Phase", key="mp_button"):
+        st.info("Requesting moon phase image from AstronomyAPI...")
+        try:
+            mp_res = requests.post(MOON_PHASE_URL, headers=auth_headers, json=mp_payload, timeout=120)
+            mp_res.raise_for_status()
+            mp_data = mp_res.json()
+            if "data" in mp_data and "imageUrl" in mp_data["data"]:
+                st.image(mp_data["data"]["imageUrl"], caption="Moon Phase", use_container_width=True)
+            else:
+                st.write("Received data:", json.dumps(mp_data, indent=4))
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 # === Footer ===
 st.markdown("---")
