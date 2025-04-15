@@ -4,7 +4,10 @@ import requests
 import base64
 import json
 import os
+import pandas as pd
+import plotly.express as px
 from dotenv import load_dotenv
+
 
 # --- Configuration ---
 # Replace with your actual credentials and API key values.
@@ -83,26 +86,26 @@ st.title("🔭 Constellation Viewer")
 
 planet_position_tab ,star_charts_tab, moon_phase_tab = st.tabs(["Planetary Positions", "Star Charts", "Moon Phase"])
 
+
 # ============================================================
 # Tab 1: Planetary Positions
 # ============================================================
 with planet_position_tab:
     st.header("Planetary Positions")
-    st.markdown(":green[Description]: Retrieve positions for all available celestial bodies for the given date range and observer's location. (Endpoint: GET /api/v2/bodies/positions)")
+    st.markdown(":green[Description]: Retrieve positions for all celestial bodies for a specified date range and observer's location. This data will be used to create a heliocentric (centered) polar plot.")
     
+    # --- Part A: Data Retrieval (API Call) ---
     col1, col2 = st.columns(2)
     with col1:
         pos_lat = st.number_input("Latitude", value=1.3521, key="pos_lat", format="%.4f")
     with col2:
         pos_lng = st.number_input("Longitude", value=103.8198, key="pos_lng", format="%.4f")
     pos_elevation = st.number_input("Elevation (m)", value=0, key="pos_elev")
-    
     pos_from_date = st.date_input("From Date", value=datetime.today(), key="pos_from")
     pos_to_date = st.date_input("To Date", value=datetime.today(), key="pos_to")
     pos_time = st.time_input("Time", value=dtime(9, 0), key="pos_time")
     
     if st.button("Get Positions", key="pos_button"):
-        # Format time as HH:MM:SS
         time_str = pos_time.strftime("%H:%M:%S")
         params = {
             "latitude": pos_lat,
@@ -118,10 +121,85 @@ with planet_position_tab:
             pos_res = requests.get(PLANETARY_POSITIONS_URL, headers=auth_headers, params=params, timeout=120)
             pos_res.raise_for_status()
             pos_data = pos_res.json()
-            # Display JSON data (you can format this into a table if desired)
-            st.json(pos_data)
+            
+            # Extract useful data from the JSON response
+            planet_data = []
+            planets_info = pos_data["data"]["table"]['rows']
+            for row in planets_info:
+                cells = row["cells"][0]  # assuming one cell per row for a single snapshot
+                date_str = cells["date"]
+                # Use the "entry" field for a reliable name.
+                name = row["entry"]["name"]
+                dist_au = float(cells["distance"]["fromEarth"]["au"])
+                dist_km = float(cells["distance"]["fromEarth"]["km"])
+                altitude_deg = float(cells["position"]["horizontal"]["altitude"]["degrees"])
+                azimuth_deg = float(cells["position"]["horizontal"]["azimuth"]["degrees"])
+                planet_data.append({
+                    "name": name,
+                    "date": date_str,
+                    "dist_au": dist_au,
+                    "dist_km": dist_km,
+                    "altitude_deg": altitude_deg,
+                    "azimuth_deg": azimuth_deg
+                })
+            
+            # Save the DataFrame in session state for later use
+            st.session_state.planet_pos_df = pd.DataFrame(planet_data)
+            st.success("Planetary positions retrieved successfully.")
+            st.write("Raw Data:", st.session_state.planet_pos_df)
         except Exception as e:
             st.error(f"Error: {e}")
+    
+    # --- Part B: Visualization (Relative Polar Plot) ---
+    if "planet_pos_df" in st.session_state:
+        # Allow user to choose which planet to use as the center.
+        planet_names = st.session_state.planet_pos_df["name"].tolist()
+        subject = st.selectbox("Select center planet", planet_names, key="subject")
+    
+        # Copy the DataFrame for processing.
+        planet_df = st.session_state.planet_pos_df.copy()
+    
+        # Retrieve the selected planet's distance (AU) from Earth.
+        try:
+            subject_au = planet_df.loc[planet_df["name"] == subject, "dist_au"].iloc[0]
+        except Exception as e:
+            st.error(f"Error retrieving subject distance: {e}")
+            subject_au = 0
+    
+        # Compute the relative distance from the selected subject.
+        planet_df["relative_au"] = (planet_df["dist_au"] - subject_au).abs()
+        # Force the subject's relative distance to 0.
+        planet_df.loc[planet_df["name"] == subject, "relative_au"] = 0
+    
+        # Create a polar scatter plot with Plotly Express using the relative distance.
+        fig = px.scatter_polar(
+            planet_df,
+            r="relative_au",
+            theta="azimuth_deg",
+            color="name",
+            hover_data=["name", "dist_au", "relative_au"],
+            title=f"Planet Positions with {subject} as Center (Relative Distance)"
+        )
+    
+        # Adjust layout of the polar plot.
+        fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                title="Relative Distance (AU)",
+                type="log"  # using a logarithmic scale
+            ),
+            angularaxis=dict(
+                direction="clockwise",
+                rotation=90
+            )
+        )
+    )
+    
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Please retrieve planetary positions to visualize.")
+            
+       
 
 # ============================================================
 # Tab 2: Star Charts 
