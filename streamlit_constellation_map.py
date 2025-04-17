@@ -159,21 +159,6 @@ with planet_position_tab:
     if "planet_pos_df" in st.session_state:
         df = st.session_state.planet_pos_df.copy()
 
-        # Streamlit container with border via a tiny CSS hack
-        st.markdown(
-            """
-            <style>
-            .bordered-box {
-                border:1px solid #444;
-                border-radius:8px;
-                padding:16px;
-                margin-bottom:24px;
-            }
-            </style>
-            <div class="bordered-box"></div>
-            """,
-            unsafe_allow_html=True
-        )
         # Now immediately grab that container
         with st.container():
             visuals, settings = st.columns([6, 4])
