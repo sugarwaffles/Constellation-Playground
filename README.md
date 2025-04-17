@@ -1,45 +1,64 @@
-# 🌌 constellation-playground
+# 🌌 Constellation‑Playground
 
-Experimental project built for me to learn to work with APIs and familiarize with the Streamlit framework.  
-
+> _An experimental project built to learn how to integrate 3rd‑party APIs, work with Streamlit, and explore basic data visualization techniques._
 
 ---
 
 ## 🚀 Features
 
-- 📍 Choose a location by typing (Google Places Autocomplete API)
-- 📅 Select a date and a constellation
-- 🌠 View a star chart based on your inputs (via AstronomyAPI)
-- 🔭 Streamlit UI with interactive widgets
+- 📍 **Location Autocomplete** via Google Places API  
+- 📅 **Date Picker** for choosing any night in history or future  
+- 🌠 **Constellation Star Charts** powered by AstronomyAPI  
+- 🔭 **Interactive Polar Plots** of planet positions  
+- 🪐 **Moon Phase & Planetary Positions** tabs (coming soon)  
 
 ---
 
-## 🧪 Tech Stack
+## 🎯 Learning Goals
 
-- Python 3
-- Streamlit
-- AstronomyAPI (for star charts)
-- Google Maps API (for location autocomplete)
-- Requests
+1. **API Integration**: Handling OAuth/basic auth, GET/POST, error handling  
+1. **State Management**: Using `st.session_state` in Streamlit  
+1. **Data Parsing & Visualization**: JSON → pandas → Plotly/Matplotlib  
+1. **UI/UX**: Designing a responsive, two‑column layout in Streamlit  
 
 ---
 
-## 📦 Setup
+## 🖼️ Screenshots
 
-1. Clone this repo:
+![Star Chart Example](./examples/star_chart_example_andromeda_lat_0_long_0.png)  
+*star‑chart of selected constellation*  
+
+![Planet Polar Plot](./examples/planetary_polar_plot.png)  
+*Heliocentric polar plot, zoomable via slider*  
+
+---
+
+## 📦 Getting Started (Running Locally)
+
+### 1. Clone
 
 ```bash
 git clone https://github.com/yourusername/constellation-playground.git
 cd constellation-playground
 ```
 
-2. Running application locally:
+### 2. Create a .env
 
-- without config.toml
 ```bash
-streamlit run streamlit_constellation_map.py --server.headless true --server.fileWatcherType=poll
+APP_ID=your_astronomyapi_app_id
+APP_SECRET=your_astronomyapi_app_secret
+GOOGLE_API_KEY=your_google_maps_api_key
 ```
-- with config.toml
+
+### 3. Install requirements.txt
+
 ```bash
-streamlit run streamlit_constellation_map.py
+pip install -r requirements.txt
+```
+
+### 4. Run streamlit program
+
+```bash
+streamlit run streamlit_constellation_map.py #Default
+streamlit run streamlit_constellation_map.py --server.headless true --server.fileWatcherType=poll # Helps show updates on save, avoid popping new tabs each time command is ran
 ```
