@@ -16,9 +16,10 @@ from dotenv import load_dotenv
 # Replace with your actual credentials and API key values.
 load_dotenv()
 
-APP_ID = os.getenv("APP_ID")
+#APP_ID = os.getenv("APP_ID")
 #APP_SECRET = os.getenv("APP_SECRET")
 #GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+APP_ID = st.secrets["astronomy_app_id"]
 APP_SECRET = st.secrets["astronomy_api_key"]
 GOOGLE_API_KEY = st.secrets["google_api_key"]
 ASTRONOMY_API_URL = 'https://api.astronomyapi.com/api/v2/studio/star-chart'
