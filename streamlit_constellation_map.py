@@ -6,6 +6,9 @@ import json
 import os
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import math
+import numpy as np
 from dotenv import load_dotenv
 
 
@@ -149,56 +152,106 @@ with planet_position_tab:
             st.write("Raw Data:", st.session_state.planet_pos_df)
         except Exception as e:
             st.error(f"Error: {e}")
+            
+    visuals , settings = st.columns([6,4],vertical_alignment="center")
     
     # --- Part B: Visualization (Relative Polar Plot) ---
     if "planet_pos_df" in st.session_state:
-        # Allow user to choose which planet to use as the center.
-        planet_names = st.session_state.planet_pos_df["name"].tolist()
-        subject = st.selectbox("Select center planet", planet_names, key="subject")
-    
-        # Copy the DataFrame for processing.
-        planet_df = st.session_state.planet_pos_df.copy()
-    
-        # Retrieve the selected planet's distance (AU) from Earth.
-        try:
-            subject_au = planet_df.loc[planet_df["name"] == subject, "dist_au"].iloc[0]
-        except Exception as e:
-            st.error(f"Error retrieving subject distance: {e}")
-            subject_au = 0
-    
-        # Compute the relative distance from the selected subject.
-        planet_df["relative_au"] = (planet_df["dist_au"] - subject_au).abs()
-        # Force the subject's relative distance to 0.
-        planet_df.loc[planet_df["name"] == subject, "relative_au"] = 0
-    
-        # Create a polar scatter plot with Plotly Express using the relative distance.
-        fig = px.scatter_polar(
-            planet_df,
-            r="relative_au",
-            theta="azimuth_deg",
-            color="name",
-            hover_data=["name", "dist_au", "relative_au"],
-            title=f"Planet Positions with {subject} as Center (Relative Distance)"
+        df = st.session_state.planet_pos_df.copy()
+
+        # Streamlit container with border via a tiny CSS hack
+        st.markdown(
+            """
+            <style>
+            .bordered-box {
+                border:1px solid #444;
+                border-radius:8px;
+                padding:16px;
+                margin-bottom:24px;
+            }
+            </style>
+            <div class="bordered-box"></div>
+            """,
+            unsafe_allow_html=True
         )
-    
-        # Adjust layout of the polar plot.
-        fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                title="Relative Distance (AU)",
-                type="log"  # using a logarithmic scale
-            ),
-            angularaxis=dict(
-                direction="clockwise",
-                rotation=90
-            )
-        )
-    )
-    
-        st.plotly_chart(fig, use_container_width=True)
+        # Now immediately grab that container
+        with st.container():
+            visuals, settings = st.columns([6, 4])
+
+            # Settings column
+            with settings:
+                st.subheader("🔧 Settings")
+                subject = st.selectbox("Center Planet", df["name"].tolist(), key="pos_subject_simple")
+
+                # Compute relative_au for zoom slider
+                subject_au = df.loc[df["name"] == subject, "dist_au"].iloc[0]
+                df["relative_au"] = (df["dist_au"] - subject_au).abs()
+                df.loc[df["name"] == subject, "relative_au"] = 0
+
+                max_r = float(df["relative_au"].max())
+                zoom = st.slider(
+                    "Max Radius (AU)", 1.0, max_r, min(10.0, max_r), step=1.0
+                )
+
+            # Visualization column
+            with visuals:
+                st.subheader("🪐 Heliocentric Polar Plot")
+
+                color_map = {
+                "Sun":"#FFD700","Mercury":"#B0B0B0","Venus":"#EEDC82","Earth":"#2E8B57",
+                "Moon":"#F0F8FF","Mars":"#B22222","Jupiter":"#DAA520","Saturn":"#D2B48C",
+                "Uranus":"#87CEEB","Neptune":"#4169E1","Pluto":"#8B008B"
+                }
+
+                # Build the figure *without* title
+                fig = px.scatter_polar(
+                    df,
+                    r="relative_au",
+                    theta="azimuth_deg",
+                    color="name",
+                    color_discrete_map=color_map,
+                    hover_data=["name", "dist_au"],
+                    template="plotly_dark"
+                )
+
+                # uniform markers + outline
+                fig.update_traces(
+                    marker=dict(size=12, line=dict(width=1, color="white"))
+                )
+
+                # optional orbit rings
+                for radius in [1, 5, 10, 20, 30]:
+                    fig.add_trace(go.Scatterpolar(
+                        r=[radius]*361,
+                        theta=list(range(361)),
+                        mode="lines",
+                        line_color="gray",
+                        line_dash="dot",
+                        showlegend=False,
+                        hoverinfo="none"
+                    ))
+
+                # push legend and give extra top margin
+                fig.update_layout(
+                    margin=dict(t=80, b=40, l=40, r=40),
+                    polar=dict(
+                        radialaxis=dict(range=[0, zoom], title="Distance (AU)"),
+                        angularaxis=dict(direction="clockwise", rotation=90, dtick=45),
+                        bgcolor="rgba(0,0,0,0)"
+                    ),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.1,   # just below the subheader
+                        xanchor="center",
+                        x=0.5,
+                        title_text=""  # remove the little 'name' title
+                    )
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Please retrieve planetary positions to visualize.")
-            
+        st.info("Please retrieve planetary positions first.")
        
 
 # ============================================================
