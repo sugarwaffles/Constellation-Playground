@@ -58,7 +58,21 @@ pip install -r requirements.txt
 
 ### 4. Run streamlit program
 
+**Basic**
 ```bash
 streamlit run streamlit_constellation_map.py #Default
+```
+
+**With Custom Options** (ensures updates on save, prevents new tab from opening for each run)
+
+```bash
 streamlit run streamlit_constellation_map.py --server.headless true --server.fileWatcherType=poll # Helps show updates on save, avoid popping new tabs each time command is ran
+```
+**You can also save these settings in a config file**
+```bash
+# .streamlit/config.toml
+[server]
+headless = true
+port = 8503
+fileWatcherType = "poll"
 ```
