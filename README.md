@@ -73,6 +73,6 @@ streamlit run streamlit_constellation_map.py --server.headless true --server.fil
 # .streamlit/config.toml
 [server]
 headless = true
-port = 8503
+# port = 8503 #Can set port number manually
 fileWatcherType = "poll"
 ```
